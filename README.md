@@ -11,7 +11,7 @@ Requirements
 
 Usage	
 =======================
-  python snmp-brute.py -t <IP>
+  python snmp-brute.py -t [IP]
 
 Options
 =======
