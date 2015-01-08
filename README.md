@@ -1,9 +1,7 @@
 #SNMP Brute
 ============================================
-
 SNMP brute force, enumeration, CISCO config downloader and password cracking script.
 Listens for any responses to the brute force community strings, effectively minimising wait time.
-
 
 Requirements	
 =======================
@@ -14,7 +12,6 @@ Requirements
 
 Usage	
 =======================
-
   python snmp-brute.py -t <IP>
 
 Options
@@ -52,11 +49,8 @@ Alternative Options
 	-c COMMUNITY    Single Community String to use
 --sploitego             Sploitego's bruteforce method
 
-
-
 Features	
 =======================
-
 * Brute forces both version 1 and version 2c SNMP community strings
 * Enumerates information for CISCO devices or if specified for Linux and Windows operating systems.
 * Identifies RW community strings
@@ -69,4 +63,3 @@ Credits
 * sploitego project - github.com/allfro/sploitego/blob/master/src/sploitego/scapytools/snmp.py
 * snmpenum.pl script - by Filip Waeytens
 * metasploit - www.metasploit.com
-
