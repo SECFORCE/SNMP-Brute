@@ -17,9 +17,7 @@ Options
 =======
 --help, -h              show this help message and exit
 
---file=DICTIONARY, 
-
-	-f DICTIONARY   Dictionary file
+--file=DICTIONARY, -f DICTIONARY   Dictionary file
 
 --target=IP, -t IP      Host IP
 
@@ -57,9 +55,7 @@ Alternative Options
 -------------------
 --stdin, -s             Read communities from stdin
 
---community=COMMUNITY, 
-
-	-c COMMUNITY    Single Community String to use
+--community=COMMUNITY, -c COMMUNITY    Single Community String to use
 
 --sploitego             Sploitego's bruteforce method
 
